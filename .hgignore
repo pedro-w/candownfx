@@ -1,0 +1,17 @@
+# Ignore distribution and build folders
+dist
+build
+nbproject/private
+
+# ignore NB/Mercurial files
+\.orig\..*$
+\.orig$
+\.chg\..*$
+\.rej$
+\.conflict\~$
+~$
+# Ignore .DS_Store on Macs and thumbnails on Win
+.DS_Store
+Thumbs.db
+
+
