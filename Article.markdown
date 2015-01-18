@@ -7,7 +7,8 @@ readily be converted to HTML.  There are plenty of Java markdown
 processors available so I thought I would use the `WebView` component
 provided by [JavaFX][] for display. The whole project is just then a
 bit of glue between a markdown processor and a display component. I
-used [MarkdownPapers][] and JavaFX 2.2. The IDE was [NetBeans] 7.2,
+used a [marked][] (which is a pure javascript solution) and JavaFX 8.0. 
+The IDE was [NetBeans] 8.0.2,
 though I did not use anything specific to the IDE.  In terms of
 specification, I just wanted to be able to view multiple files at
 once, and to have the display update automatically if any file changed
@@ -15,7 +16,7 @@ on disk.
 
 [markdown]: daringfireball.net/projects/markdown/
 [JavaFX]: http://www.oracle.com/technetwork/java/javafx/overview/index.html
-[MarkdownPapers]: http://markdown.tautua.org/
+[marked]: http://markdown.tautua.org/
 [NetBeans]: http://www.netbeans.org/
 
 The User Interface
@@ -31,39 +32,50 @@ pane. Details of this are included later.
 I generate the UI with code rather than FXML; probably it would be
 better to use the latter for a more complicated interface.
 
-	// Create all menu items.
-	Menu fileMenu = new Menu("File");
-	MenuItem fileOpenMenu = new MenuItem("Open...");
-	MenuItem fileExitMenu = new MenuItem("Exit");
-	Menu viewMenu = new Menu("View");
-	MenuItem viewRefreshMenu = new MenuItem("Refresh");
-	CheckMenuItem viewAutoRefreshMenu = new CheckMenuItem("Auto Refresh");
+~~~~
+// Create all menu items.
+Menu fileMenu = new Menu("File");
+MenuItem fileOpenMenu = new MenuItem("Open...");
+MenuItem fileExitMenu = new MenuItem("Exit");
+Menu viewMenu = new Menu("View");
+MenuItem viewRefreshMenu = new MenuItem("Refresh");
+CheckMenuItem viewAutoRefreshMenu = new CheckMenuItem("Auto Refresh");
 
-	// Assemble the menu bar
-	fileMenu.getItems().addAll(fileOpenMenu, new SeparatorMenuItem(), fileExitMenu);
-	viewMenu.getItems().addAll(viewRefreshMenu, viewAutoRefreshMenu);
-	MenuBar menuBar = new MenuBar();
-	menuBar.getMenus().addAll(fileMenu, viewMenu);
+// Assemble the menu bar
+fileMenu.getItems().addAll(fileOpenMenu, new SeparatorMenuItem(), fileExitMenu);
+viewMenu.getItems().addAll(viewRefreshMenu, viewAutoRefreshMenu);
+MenuBar menuBar = new MenuBar();
+menuBar.getMenus().addAll(fileMenu, viewMenu);
+~~~~
 
 Rendering the Content
 =====================
 
 This is straightforward. I set up a reader to open the markdown file
-(using the platform's default encoding.) I created a parser to process
-the text into a MarkdownPapers `Document` object, then convert this to
-an HTML string in a `StringWriter`. The document only generates the
+(using UTF-8 encoding.) I created a Java ScriptEngine and
+loaded the `marked.js` script into it, then a wrapper which implements the 
+(Java) Renderer interface. I then called the `render()` function
+to run the conversion. The script only generates the
 body text, so I put some HTML tags either side of this to make it into
 a 'proper' document.
 
-	FileReader reader = new FileReader(filename);
-	StringWriter writer = new StringWriter();
-	Parser parser = new Parser(reader);
-	Document document = parser.parse();
-	// Add a minimal html skeleton.
-	writer.append("<html><head></head><body>");
-	document.accept(new HtmlEmitter(writer));
-	writer.append("</body></html>");
-	return writer.toString();
+In Java:
+
+~~~~
+public interface Renderer {
+  String render(String input);  
+}
+~~~~
+
+In Javascript:
+
+~~~~
+/* implementation of candown.Renderer interface */
+function render(s) {
+    return "<html><body>"+marked(s, {gfm: true})+"</body</html>";
+}
+~~~~
+
 
 Note that there's no error handling at all here. Any exceptions are
 caught by the surrounding code (see later) but the `FileReader` could
@@ -104,37 +116,29 @@ display the exception as text.  So, the loading, rendering and display
 code looks like this.
 
 	Task<String> reloader = new Task<String>() {
-		@Override
-		protected String call() throws Exception {
-			FileReader reader = new FileReader(filename);
-			StringWriter writer = new StringWriter();
-			Parser parser = new Parser(reader);
-			Document document = parser.parse();
-			// Add a minimal html skeleton.
-			writer.append("<html><head></head><body>");
-			document.accept(new HtmlEmitter(writer));
-			writer.append("</body></html>");
-			return writer.toString();
-		}
-	};
-	// Succeeded, show the content as html
-	reloader.setOnSucceeded(new EventHandler<WorkerStateEvent>() {
-		@Override
-		public void handle(WorkerStateEvent event) {
-			// Get the string returned by the task body.
-			final Object value = event.getSource().getValue();
-			if (value != null) {
-				webEngine.loadContent(value.toString(), "text/html");
-			}
-		}
-	});
-	// Failed, show exception as plain text
-	reloader.setOnFailed(new EventHandler<WorkerStateEvent>() {
-		@Override
-		public void handle(WorkerStateEvent event) {
-			webEngine.loadContent(event.getSource().getException().toString(), "text/plain");
-		}
-	});
+
+                @Override
+                protected String call() throws Exception {
+                    String in = new String(Files.readAllBytes(filename.toPath()), StandardCharsets.UTF_8);
+                    return renderer.render(in);
+
+                }
+
+            };
+            final WebEngine webEngine = ((WebView) tab.getContent()).getEngine();
+            // Succeeded, show the content as html
+            reloader.setOnSucceeded((WorkerStateEvent event) -> {
+                final Object value = event.getSource().getValue();
+                if (value != null) {
+                    webEngine.loadContent(value.toString(), "text/html");
+                }
+            });
+            // Failed, show exception as plain text
+            reloader.setOnFailed((WorkerStateEvent event) -> {
+                webEngine.loadContent(event.getSource().getException().toString(), "text/plain");
+            });
+            // Actually do the work on a different thread.
+            executor.submit(reloader);
 
 Once the reloader object is set up, it can be run. The simplest way is to start a new thread.
 

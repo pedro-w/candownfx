@@ -2,7 +2,7 @@ CanDownFX
 =========
 
 This is a reader for [markdown][] implemented in JavaFX. Requires 
-JDK 7 and JavaFX SDK 2.2. The app icon was taken from Dustin Curtis's
+JDK 8. The app icon was taken from Dustin Curtis's
 [markdown-mark][] project.
 [markdown]: http://daringfireball.net/projects/markdown/
 [markdown-mark]: http://github.com/dcurtis/markdown-mark
