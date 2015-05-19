@@ -3,11 +3,14 @@ package candown;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.beans.value.ObservableValue;
@@ -22,6 +25,7 @@ import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
+import javafx.scene.image.Image;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
@@ -84,6 +88,11 @@ public class CanDownFX extends Application {
     public void start(Stage primaryStage) {
         // store the main stage for later.
         this.mainStage = primaryStage;
+        // Set app icon
+        primaryStage.getIcons().addAll(Stream.of("star16.png", "star32.png", "star48.png", "star64.png")
+                .map(s -> getClass().getResource(s).toString())
+                .map(u -> new Image(u))
+                .collect(Collectors.toList()));
 
         // Create all menu items.
         Menu fileMenu = new Menu("File");
