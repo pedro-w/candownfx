@@ -4,12 +4,13 @@ CanDownFX
 This is a reader for [markdown][] implemented in JavaFX. Requires 
 JDK 8. The app icon was taken from Dustin Curtis's
 [markdown-mark][] project.
+
 [markdown]: http://daringfireball.net/projects/markdown/
 [markdown-mark]: http://github.com/dcurtis/markdown-mark
 
 NetBeans project is included.
 
-Licenced under the MIT license.
+Licensed under the MIT license.
 
 Copyright (c) 2012 Peter Hull
 
