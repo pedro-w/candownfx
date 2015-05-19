@@ -16,7 +16,7 @@ on disk.
 
 [markdown]: daringfireball.net/projects/markdown/
 [JavaFX]: http://www.oracle.com/technetwork/java/javafx/overview/index.html
-[marked]: http://markdown.tautua.org/
+[marked]: https://github.com/chjj/marked
 [NetBeans]: http://www.netbeans.org/
 
 The User Interface
