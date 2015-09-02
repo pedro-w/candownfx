@@ -3,7 +3,6 @@ package candown;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ExecutorService;
@@ -72,7 +71,9 @@ public class CanDownFX extends Application {
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     /// Current timer task or null
     private RefreshTask refreshTask;
-
+/**
+ * Create a new instance of this app.
+ */
     public CanDownFX() {
         Wrapper wrapper = new Wrapper();
         this.renderer = wrapper.getRenderer();
@@ -140,9 +141,9 @@ public class CanDownFX extends Application {
     }
 
     private void onTimerTick() {
-        for (Tab tab : tabPane.getTabs()) {
+        tabPane.getTabs().stream().forEach((tab) -> {
             loadTabContent(tab);
-        }
+        });
     }
 
     /**
