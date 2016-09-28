@@ -10,6 +10,7 @@ package candown;
  *
  * @author peterhull
  */
+@FunctionalInterface
 public interface Renderer {
     /**
      * Take the input string in markdown format and
