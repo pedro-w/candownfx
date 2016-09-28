@@ -141,9 +141,7 @@ public class CanDownFX extends Application {
     }
 
     private void onTimerTick() {
-        tabPane.getTabs().stream().forEach((tab) -> {
-            loadTabContent(tab);
-        });
+        tabPane.getTabs().stream().forEach(this::loadTabContent);
     }
 
     /**
