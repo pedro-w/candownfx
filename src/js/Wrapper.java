@@ -28,7 +28,7 @@ public class Wrapper {
         ScriptEngineManager sem = new ScriptEngineManager();
         engine = sem.getEngineByExtension("js");
         
-        try (Reader rdr = new InputStreamReader(Wrapper.class.getResourceAsStream("marked.js"))) {
+        try (Reader rdr = new InputStreamReader(Wrapper.class.getResourceAsStream("marked.min.js"))) {
                 engine.eval(rdr);
                 invocable = (Invocable) engine;
         } catch (IOException |ScriptException xep) {
