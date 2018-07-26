@@ -316,6 +316,7 @@ work could include
 * Better error handling.
 * Use FXML.
 * Implement a recently-used file list.
+* Add CSS styles
 
 Full source code is [available][1].
 
