@@ -1,7 +1,7 @@
 # Ignore distribution and build folders
-dist
-build
-nbproject/private
+dist/
+build/
+nbproject/private/
 
 # ignore NB/Mercurial files
 \.orig\..*$
