@@ -3,7 +3,6 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-
 package js;
 
 import candown.Renderer;
@@ -22,37 +21,41 @@ import javax.script.ScriptException;
  * @author peterhull
  */
 public class Wrapper {
-    private ScriptEngine engine;
-    private Invocable invocable;
+
+    private final ScriptEngine engine;
+    private final Invocable invocable;
+
     public Wrapper() {
         ScriptEngineManager sem = new ScriptEngineManager();
         engine = sem.getEngineByExtension("js");
-        
-        try (Reader rdr = new InputStreamReader(Wrapper.class.getResourceAsStream("marked.min.js"))) {
+        if (engine != null) {
+            try (Reader rdr = new InputStreamReader(Wrapper.class.getResourceAsStream("marked.min.js"))) {
                 engine.eval(rdr);
-                invocable = (Invocable) engine;
-        } catch (IOException |ScriptException xep) {
-            // Shouldn't happen since the file is build into the JAR.
-            Logger.getLogger(Wrapper.class.getName()).log(Level.SEVERE, null, xep);
-        }
-        try (Reader rdr = new InputStreamReader(Wrapper.class.getResourceAsStream("wrapper.js"))) {
+            } catch (IOException | ScriptException xep) {
+                // Shouldn't happen since the file is build into the JAR.
+                Logger.getLogger(Wrapper.class.getName()).log(Level.SEVERE, null, xep);
+            }
+            try (Reader rdr = new InputStreamReader(Wrapper.class.getResourceAsStream("wrapper.js"))) {
                 engine.eval(rdr);
-                invocable = (Invocable) engine;
-        } catch (IOException |ScriptException xep) {
-            // Shouldn't happen since the file is build into the JAR.
-            Logger.getLogger(Wrapper.class.getName()).log(Level.SEVERE, null, xep);
+            } catch (IOException | ScriptException xep) {
+                // Shouldn't happen since the file is built into the JAR.
+                Logger.getLogger(Wrapper.class.getName()).log(Level.SEVERE, null, xep);
+            }
+            invocable = (Invocable) engine;
+        } else {
+            invocable = null;
         }
-        
     }
-    public String render(String input) {
-        try {
-            return invocable.invokeFunction("marked", input).toString();
-        } catch (NoSuchMethodException|ScriptException ex) {
-            Logger.getLogger(Wrapper.class.getName()).log(Level.SEVERE, null, ex);
-            return "error";
+
+    private static class NullRenderer implements Renderer {
+
+        @Override
+        public String render(String input) {
+            return "No Javascript Engine installed";
         }
+    
     }
     public Renderer getRenderer() {
-        return invocable.getInterface(Renderer.class);
+        return invocable == null ? new NullRenderer() : invocable.getInterface(Renderer.class);
     }
 }
