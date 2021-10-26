@@ -2,18 +2,18 @@ CanDownFX
 =========
 
 This is a reader for [markdown][] implemented in JavaFX. Requires 
-JDK 8. 
+JDK 17. 
 The project makes use of [marked][], a pure Javascript markdown processor.
 The app icon was taken from Dustin Curtis's
 [markdown-mark][] project.
 
 [markdown]: http://daringfireball.net/projects/markdown/
-[marked]: http://github.com/chjj/marked
+[marked]: http://github.com/markedjs/marked
 [markdown-mark]: http://github.com/dcurtis/markdown-mark
 
-NetBeans project is included.
+Maven project is included.
 
-marked is copyright (c) 2011-2014, Christopher Jeffrey. (MIT License)
+marked is copyright (c) 2011-2021, Christopher Jeffrey. (MIT License)
 
 Licensed under the MIT license.
 

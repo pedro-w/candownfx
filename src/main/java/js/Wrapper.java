@@ -29,7 +29,7 @@ public class Wrapper {
         ScriptEngineManager sem = new ScriptEngineManager();
         engine = sem.getEngineByExtension("js");
         if (engine != null) {
-            try (Reader rdr = new InputStreamReader(Wrapper.class.getResourceAsStream("marked.min.js"))) {
+            try (Reader rdr = new InputStreamReader(Wrapper.class.getResourceAsStream("marked-3.js"))) {
                 engine.eval(rdr);
             } catch (IOException | ScriptException xep) {
                 // Shouldn't happen since the file is build into the JAR.
@@ -47,15 +47,9 @@ public class Wrapper {
         }
     }
 
-    private static class NullRenderer implements Renderer {
+    private static final Renderer NULLRENDERER = (String input) -> "No Javascript Engine installed";
 
-        @Override
-        public String render(String input) {
-            return "No Javascript Engine installed";
-        }
-    
-    }
     public Renderer getRenderer() {
-        return invocable == null ? new NullRenderer() : invocable.getInterface(Renderer.class);
+        return invocable == null ? NULLRENDERER : invocable.getInterface(Renderer.class);
     }
 }
