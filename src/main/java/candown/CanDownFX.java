@@ -3,19 +3,23 @@ package candown;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.Objects;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.prefs.Preferences;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.beans.value.ObservableValue;
+import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.ActionEvent;
+import javafx.event.EventTarget;
 import javafx.scene.Scene;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.Menu;
@@ -65,15 +69,18 @@ public class CanDownFX extends Application {
     /// A timer used for auto refresh events
     private final Timer autorefreshTimer = new Timer("autorefreshTimer", true);
     private final Renderer renderer;
-
+    
     private Scene scene;
     private Stage mainStage;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     /// Current timer task or null
     private RefreshTask refreshTask;
-/**
- * Create a new instance of this app.
- */
+    private ObservableList<MenuItem> recentFiles;
+    private static final int MRU_MAX_SIZE = 5;
+
+    /**
+     * Create a new instance of this app.
+     */
     public CanDownFX() {
         Wrapper wrapper = new Wrapper();
         this.renderer = wrapper.getRenderer();
@@ -98,19 +105,21 @@ public class CanDownFX extends Application {
         // Create all menu items.
         Menu fileMenu = new Menu("File");
         MenuItem fileOpenMenu = new MenuItem("Open...");
+        Menu fileRecentMenu = new Menu("Recent");
         MenuItem fileExitMenu = new MenuItem("Exit");
         Menu viewMenu = new Menu("View");
         MenuItem viewRefreshMenu = new MenuItem("Refresh");
         CheckMenuItem viewAutoRefreshMenu = new CheckMenuItem("Auto Refresh");
 
         // Assemble the menu bar
-        fileMenu.getItems().addAll(fileOpenMenu, new SeparatorMenuItem(), fileExitMenu);
+        fileMenu.getItems().addAll(fileOpenMenu, fileRecentMenu, new SeparatorMenuItem(), fileExitMenu);
         viewMenu.getItems().addAll(viewRefreshMenu, viewAutoRefreshMenu);
         MenuBar menuBar = new MenuBar();
         menuBar.getMenus().addAll(fileMenu, viewMenu);
 
         // Bind in the handlers
         fileOpenMenu.setOnAction(this::onOpen);
+        recentFiles = fileRecentMenu.getItems();
         viewAutoRefreshMenu.selectedProperty().addListener((ObservableValue<? extends Boolean> ov, Boolean oldValue, Boolean newValue) -> {
             if (newValue) {
                 refreshTask = new RefreshTask();
@@ -138,8 +147,20 @@ public class CanDownFX extends Application {
         primaryStage.setTitle("CanDown - Markdown Viewer");
         primaryStage.setScene(scene);
         primaryStage.show();
-    }
 
+        // Load the preferences
+        Preferences prefs = Preferences.userNodeForPackage(this.getClass());
+        int n = prefs.getInt("MRU.N", 0);
+        for (int i = 0; i<n; ++i) {
+            String key = String.format("MRU.%d", i);
+            String v = prefs.get(key, null);
+            if (v != null) {
+                File f = new File(v);
+                recentFiles.add(makeRecentItem(f));
+            }
+        }
+    }
+    
     private void onTimerTick() {
         tabPane.getTabs().stream().forEach(this::loadTabContent);
     }
@@ -149,7 +170,7 @@ public class CanDownFX extends Application {
      *
      * @param t the menu event.
      */
-    private void onRefresh(ActionEvent t) {
+    private void onRefresh(ActionEvent event) {
         Tab tab = tabPane.getSelectionModel().getSelectedItem();
         if (tab != null) {
             loadTabContent(tab);
@@ -164,23 +185,24 @@ public class CanDownFX extends Application {
     private void onExit(ActionEvent event) {
         mainStage.close();
     }
-
+    
     private void onOpen(ActionEvent event) {
         File f = chooser.showOpenDialog(mainStage);
         if (f != null) {
             f = f.getAbsoluteFile();
-            boolean found = false;
-            for (Tab t : tabPane.getTabs()) {
-                if (t.getProperties().get(SOURCE_FILE).equals(f)) {
-                    tabPane.getSelectionModel().select(t);
-                    found = true;
-                    break;
-                }
-            }
-            if (!found) {
-                openFile(f);
+            addToRecent(f);
+            findOrOpen(f);
+        }
+    }
+    
+    private void findOrOpen(File f) {
+        for (Tab t : tabPane.getTabs()) {
+            if (t.getProperties().get(SOURCE_FILE).equals(f)) {
+                tabPane.getSelectionModel().select(t);
+                return;
             }
         }
+        openFile(f);
     }
 
     /**
@@ -214,16 +236,16 @@ public class CanDownFX extends Application {
         }
         if (needsReload) {
             tab.getProperties().put(UPDATE_TIME, filename.lastModified());
-
+            
             Task<String> reloader = new Task<String>() {
-
+                
                 @Override
                 protected String call() throws Exception {
                     String in = new String(Files.readAllBytes(filename.toPath()), StandardCharsets.UTF_8);
                     return renderer.render(in);
-
+                    
                 }
-
+                
             };
             final WebEngine webEngine = ((WebView) tab.getContent()).getEngine();
             // Succeeded, show the content as html
@@ -262,7 +284,7 @@ public class CanDownFX extends Application {
 
     /**
      * Stop the application. Shuts down the update timer and the execution
-     * queue.
+     * queue. Save any preferences
      *
      * @throws Exception
      */
@@ -270,18 +292,65 @@ public class CanDownFX extends Application {
     public void stop() throws Exception {
         autorefreshTimer.cancel();
         executor.shutdownNow();
+        //Store preferences
+        Preferences prefs = Preferences.userNodeForPackage(this.getClass());
+        prefs.putInt("MRU.N", recentFiles.size());
+        for (int i = 0; i < recentFiles.size(); ++i) {
+            File f = (File) recentFiles.get(i).getUserData();
+            prefs.put(String.format("MRU.%d", i), f.getAbsolutePath());
+        }
+        prefs.sync();
         executor.awaitTermination(10, TimeUnit.SECONDS);
+    }
+    
+    private void onOpenRecent(ActionEvent event) {
+        EventTarget target = event.getTarget();
+        if (target instanceof MenuItem m) {
+            if (m.getUserData() instanceof File f) {
+                findOrOpen(f);
+            }
+        }
+    }
+    
+    private void addToRecent(File f) {
+        MenuItem found = null;
+        for (MenuItem recentFile : recentFiles) {
+            if (Objects.equals(f, recentFile.getUserData())) {
+                // Found it
+                found = recentFile;
+                break;
+            }
+        }
+        if (found == null) {
+            MenuItem item = makeRecentItem(f);
+            if (recentFiles.size() > MRU_MAX_SIZE) {
+                recentFiles.remove(recentFiles.size() - 1);
+            }
+            recentFiles.add(0, item);
+        } else {
+            // jump the found one up to the top
+            recentFiles.remove(found);
+            recentFiles.add(0, found);
+        }
+    }
+
+    private MenuItem makeRecentItem(File f) {
+        // Add new
+        MenuItem item = new MenuItem(f.getAbsolutePath());
+        item.setUserData(f);
+        item.setOnAction(this::onOpenRecent);
+        return item;
     }
 
     /**
      * Refresh timer task. Runs onTimerTick(), always on the Application thread.
      */
     private class RefreshTask extends TimerTask {
-
+        
         @Override
         public void run() {
             Platform.runLater(CanDownFX.this::onTimerTick);
         }
     }
-
+    
 }
