@@ -6,50 +6,21 @@
 package js;
 
 import candown.Renderer;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import javax.script.Invocable;
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
-import javax.script.ScriptException;
-
+import org.commonmark.node.Node;
+import org.commonmark.parser.Parser;
+import org.commonmark.renderer.html.HtmlRenderer;
 /**
  *
  * @author peterhull
  */
 public class Wrapper {
-
-    private final ScriptEngine engine;
-    private final Invocable invocable;
-
-    public Wrapper() {
-        ScriptEngineManager sem = new ScriptEngineManager();
-        engine = sem.getEngineByExtension("js");
-        if (engine != null) {
-            try (Reader rdr = new InputStreamReader(Wrapper.class.getResourceAsStream("marked-3.js"))) {
-                engine.eval(rdr);
-            } catch (IOException | ScriptException xep) {
-                // Shouldn't happen since the file is build into the JAR.
-                Logger.getLogger(Wrapper.class.getName()).log(Level.SEVERE, null, xep);
-            }
-            try (Reader rdr = new InputStreamReader(Wrapper.class.getResourceAsStream("wrapper.js"))) {
-                engine.eval(rdr);
-            } catch (IOException | ScriptException xep) {
-                // Shouldn't happen since the file is built into the JAR.
-                Logger.getLogger(Wrapper.class.getName()).log(Level.SEVERE, null, xep);
-            }
-            invocable = (Invocable) engine;
-        } else {
-            invocable = null;
-        }
-    }
-
-    private static final Renderer NULLRENDERER = (String input) -> "No Javascript Engine installed";
-
+  
     public Renderer getRenderer() {
-        return invocable == null ? NULLRENDERER : invocable.getInterface(Renderer.class);
+        Parser parser = Parser.builder().build();
+        HtmlRenderer renderer = HtmlRenderer.builder().build();
+        return (String input) -> {
+            Node parsed = parser.parse(input);
+            return renderer.render(parsed);
+        };
     }
 }
