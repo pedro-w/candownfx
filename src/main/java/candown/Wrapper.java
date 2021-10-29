@@ -3,9 +3,8 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package js;
+package candown;
 
-import candown.Renderer;
 import org.commonmark.node.Node;
 import org.commonmark.parser.Parser;
 import org.commonmark.renderer.html.HtmlRenderer;

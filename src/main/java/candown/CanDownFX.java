@@ -34,7 +34,6 @@ import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
-import js.Wrapper;
 
 /**
  * Application to view markdown files. It is possible to set auto-refresh which
