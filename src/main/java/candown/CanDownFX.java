@@ -17,9 +17,9 @@ import javafx.application.Platform;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
+import javafx.concurrent.Worker;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.ActionEvent;
-import javafx.event.EventTarget;
 import javafx.scene.Scene;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.Menu;
@@ -35,6 +35,8 @@ import javafx.scene.web.WebView;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import js.Wrapper;
+import org.w3c.dom.NodeList;
+import org.w3c.dom.events.Event;
 
 /**
  * Application to view markdown files. It is possible to set auto-refresh which
@@ -50,6 +52,7 @@ public class CanDownFX extends Application {
     private static final Object SOURCE_FILE = new Object();
     /// Key for the UPDATE_TIME property of a tab.
     private static final Object UPDATE_TIME = new Object();
+    private static final int MRU_MAX_SIZE = 5;
 
     /**
      * The main() method is ignored in correctly deployed JavaFX application.
@@ -69,14 +72,13 @@ public class CanDownFX extends Application {
     /// A timer used for auto refresh events
     private final Timer autorefreshTimer = new Timer("autorefreshTimer", true);
     private final Renderer renderer;
-    
+
     private Scene scene;
     private Stage mainStage;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     /// Current timer task or null
     private RefreshTask refreshTask;
     private ObservableList<MenuItem> recentFiles;
-    private static final int MRU_MAX_SIZE = 5;
 
     /**
      * Create a new instance of this app.
@@ -151,7 +153,7 @@ public class CanDownFX extends Application {
         // Load the preferences
         Preferences prefs = Preferences.userNodeForPackage(this.getClass());
         int n = prefs.getInt("MRU.N", 0);
-        for (int i = 0; i<n; ++i) {
+        for (int i = 0; i < n; ++i) {
             String key = String.format("MRU.%d", i);
             String v = prefs.get(key, null);
             if (v != null) {
@@ -160,7 +162,7 @@ public class CanDownFX extends Application {
             }
         }
     }
-    
+
     private void onTimerTick() {
         tabPane.getTabs().stream().forEach(this::loadTabContent);
     }
@@ -185,7 +187,7 @@ public class CanDownFX extends Application {
     private void onExit(ActionEvent event) {
         mainStage.close();
     }
-    
+
     private void onOpen(ActionEvent event) {
         File f = chooser.showOpenDialog(mainStage);
         if (f != null) {
@@ -194,7 +196,7 @@ public class CanDownFX extends Application {
             findOrOpen(f);
         }
     }
-    
+
     private void findOrOpen(File f) {
         for (Tab t : tabPane.getTabs()) {
             if (t.getProperties().get(SOURCE_FILE).equals(f)) {
@@ -236,16 +238,16 @@ public class CanDownFX extends Application {
         }
         if (needsReload) {
             tab.getProperties().put(UPDATE_TIME, filename.lastModified());
-            
+
             Task<String> reloader = new Task<String>() {
-                
+
                 @Override
                 protected String call() throws Exception {
                     String in = new String(Files.readAllBytes(filename.toPath()), StandardCharsets.UTF_8);
                     return renderer.render(in);
-                    
+
                 }
-                
+
             };
             final WebEngine webEngine = ((WebView) tab.getContent()).getEngine();
             // Succeeded, show the content as html
@@ -277,6 +279,17 @@ public class CanDownFX extends Application {
         tab.setContent(wv);
         tab.setText(filename.getName());
         wv.setContextMenuEnabled(false);
+        WebEngine engine = wv.getEngine();
+        // Disable any hyperlinks (taken from https://stackoverflow.com/a/33445383)
+        engine.getLoadWorker().stateProperty().addListener((obs, oldval, newval) -> {
+            if (Objects.equals(newval, Worker.State.SUCCEEDED)) {
+                NodeList anchors =  engine.getDocument().getElementsByTagName("a");
+                for (int i = 0; i < anchors.getLength(); ++i) {
+                    org.w3c.dom.events.EventTarget target = (org.w3c.dom.events.EventTarget) anchors.item(i);
+                    target.addEventListener("click", Event::preventDefault, false);
+                }
+            }
+        });
         tabPane.getTabs().add(tab);
         tabPane.getSelectionModel().select(tab);
         loadTabContent(tab);
@@ -302,16 +315,16 @@ public class CanDownFX extends Application {
         prefs.sync();
         executor.awaitTermination(10, TimeUnit.SECONDS);
     }
-    
+
     private void onOpenRecent(ActionEvent event) {
-        EventTarget target = event.getTarget();
+        javafx.event.EventTarget target = event.getTarget();
         if (target instanceof MenuItem m) {
             if (m.getUserData() instanceof File f) {
                 findOrOpen(f);
             }
         }
     }
-    
+
     private void addToRecent(File f) {
         MenuItem found = null;
         for (MenuItem recentFile : recentFiles) {
@@ -346,11 +359,11 @@ public class CanDownFX extends Application {
      * Refresh timer task. Runs onTimerTick(), always on the Application thread.
      */
     private class RefreshTask extends TimerTask {
-        
+
         @Override
         public void run() {
             Platform.runLater(CanDownFX.this::onTimerTick);
         }
     }
-    
+
 }
