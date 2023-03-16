@@ -57,6 +57,7 @@ jobs:
     - name: Setup Java JDK
       uses: actions/setup-java@v3.10.0
       with:
+        distribution: temurin
         java-version: 16
 
     # Autobuild attempts to build any compiled languages  (C/C++, C#, Go, or Java).
