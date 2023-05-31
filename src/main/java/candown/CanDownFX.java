@@ -1,17 +1,5 @@
 package candown;
 
-import java.io.File;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.util.Objects;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.util.prefs.Preferences;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.beans.value.ObservableValue;
@@ -21,13 +9,7 @@ import javafx.concurrent.Worker;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.ActionEvent;
 import javafx.scene.Scene;
-import javafx.scene.control.CheckMenuItem;
-import javafx.scene.control.Menu;
-import javafx.scene.control.MenuBar;
-import javafx.scene.control.MenuItem;
-import javafx.scene.control.SeparatorMenuItem;
-import javafx.scene.control.Tab;
-import javafx.scene.control.TabPane;
+import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.web.WebEngine;
@@ -37,6 +19,17 @@ import javafx.stage.Stage;
 import js.Wrapper;
 import org.w3c.dom.NodeList;
 import org.w3c.dom.events.Event;
+
+import java.io.File;
+import java.nio.file.Files;
+import java.util.Objects;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.prefs.Preferences;
+import java.util.stream.Stream;
 
 /**
  * Application to view markdown files. It is possible to set auto-refresh which
@@ -53,6 +46,25 @@ public class CanDownFX extends Application {
     /// Key for the UPDATE_TIME property of a tab.
     private static final Object UPDATE_TIME = new Object();
     private static final int MRU_MAX_SIZE = 5;
+    /// The chooser used to open files
+    private final FileChooser chooser = new FileChooser();
+    /// A timer used for auto refresh events
+    private final Timer autorefreshTimer = new Timer("autorefreshTimer", true);
+    private final Renderer renderer;
+    private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    /// Reference to the tab pane Node
+    private TabPane tabPane;
+    private Stage mainStage;
+    /// Current timer task or null
+    private RefreshTask refreshTask;
+    private ObservableList<MenuItem> recentFiles;
+    /**
+     * Create a new instance of this app.
+     */
+    public CanDownFX() {
+        Wrapper wrapper = new Wrapper();
+        this.renderer = wrapper.getRenderer();
+    }
 
     /**
      * The main() method is ignored in correctly deployed JavaFX application.
@@ -64,28 +76,6 @@ public class CanDownFX extends Application {
      */
     public static void main(String[] args) {
         launch(args);
-    }
-    /// Reference to the tab pane Node
-    private TabPane tabPane;
-    /// The chooser used to open files
-    private final FileChooser chooser = new FileChooser();
-    /// A timer used for auto refresh events
-    private final Timer autorefreshTimer = new Timer("autorefreshTimer", true);
-    private final Renderer renderer;
-
-    private Scene scene;
-    private Stage mainStage;
-    private final ExecutorService executor = Executors.newSingleThreadExecutor();
-    /// Current timer task or null
-    private RefreshTask refreshTask;
-    private ObservableList<MenuItem> recentFiles;
-
-    /**
-     * Create a new instance of this app.
-     */
-    public CanDownFX() {
-        Wrapper wrapper = new Wrapper();
-        this.renderer = wrapper.getRenderer();
     }
 
     /**
@@ -101,8 +91,8 @@ public class CanDownFX extends Application {
         // Set app icon
         primaryStage.getIcons().addAll(Stream.of("star16.png", "star32.png", "star48.png", "star64.png")
                 .map(s -> getClass().getResource(s).toString())
-                .map(u -> new Image(u))
-                .collect(Collectors.toList()));
+                .map(Image::new)
+                .toList());
 
         // Create all menu items.
         Menu fileMenu = new Menu("File");
@@ -145,7 +135,7 @@ public class CanDownFX extends Application {
         root.setCenter(tabPane);
 
         // Set up the main (and only) scene.
-        scene = new Scene(root, 300, 250);
+        Scene scene = new Scene(root, 300, 250);
         primaryStage.setTitle("CanDown - Markdown Viewer");
         primaryStage.setScene(scene);
         primaryStage.show();
@@ -164,13 +154,13 @@ public class CanDownFX extends Application {
     }
 
     private void onTimerTick() {
-        tabPane.getTabs().stream().forEach(this::loadTabContent);
+        tabPane.getTabs().forEach(this::loadTabContent);
     }
 
     /**
      * Refresh handler. Called when the View|Refresh menu is chosen.
      *
-     * @param t the menu event.
+     * @param event the menu event.
      */
     private void onRefresh(ActionEvent event) {
         Tab tab = tabPane.getSelectionModel().getSelectedItem();
@@ -182,7 +172,7 @@ public class CanDownFX extends Application {
     /**
      * Exit handler. Called when the File|Exit menu is chosen.
      *
-     * @param event
+     * @param event the action event (not used)
      */
     private void onExit(ActionEvent event) {
         mainStage.close();
@@ -210,11 +200,9 @@ public class CanDownFX extends Application {
     /**
      * Initialise the application. Do some things that don't need to be on the
      * application thread.
-     *
-     * @throws Exception
      */
     @Override
-    public void init() throws Exception {
+    public void init() {
         chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Markdown", "*.md", "*.markdown", "*.MD"));
         chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("All files", "*.*"));
     }
@@ -224,8 +212,9 @@ public class CanDownFX extends Application {
      * must have had its SOURCE_FILE property set. If the file has not been
      * updated since it was loaded, don't do anything. If there's an error then
      * the content is set to be the exception message.
+     * <p>
+     * Note: must be called from the application thread.
      *
-     * @note: must be called from the application thread.
      * @param tab the tab to load.
      */
     private void loadTabContent(Tab tab) {
@@ -239,11 +228,11 @@ public class CanDownFX extends Application {
         if (needsReload) {
             tab.getProperties().put(UPDATE_TIME, filename.lastModified());
 
-            Task<String> reloader = new Task<String>() {
+            Task<String> reloader = new Task<>() {
 
                 @Override
                 protected String call() throws Exception {
-                    String in = new String(Files.readAllBytes(filename.toPath()), StandardCharsets.UTF_8);
+                    String in = Files.readString(filename.toPath());
                     return renderer.render(in);
 
                 }
@@ -258,9 +247,7 @@ public class CanDownFX extends Application {
                 }
             });
             // Failed, show exception as plain text
-            reloader.setOnFailed((WorkerStateEvent event) -> {
-                webEngine.loadContent(event.getSource().getException().toString(), "text/plain");
-            });
+            reloader.setOnFailed((WorkerStateEvent event) -> webEngine.loadContent(event.getSource().getException().toString(), "text/plain"));
             // Actually do the work on a different thread.
             executor.submit(reloader);
         }
@@ -283,7 +270,7 @@ public class CanDownFX extends Application {
         // Disable any hyperlinks (taken from https://stackoverflow.com/a/33445383)
         engine.getLoadWorker().stateProperty().addListener((obs, oldval, newval) -> {
             if (Objects.equals(newval, Worker.State.SUCCEEDED)) {
-                NodeList anchors =  engine.getDocument().getElementsByTagName("a");
+                NodeList anchors = engine.getDocument().getElementsByTagName("a");
                 for (int i = 0; i < anchors.getLength(); ++i) {
                     org.w3c.dom.events.EventTarget target = (org.w3c.dom.events.EventTarget) anchors.item(i);
                     target.addEventListener("click", Event::preventDefault, false);
@@ -299,7 +286,7 @@ public class CanDownFX extends Application {
      * Stop the application. Shuts down the update timer and the execution
      * queue. Save any preferences
      *
-     * @throws Exception
+     * @throws Exception if something goes wrong
      */
     @Override
     public void stop() throws Exception {

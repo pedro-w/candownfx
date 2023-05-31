@@ -7,7 +7,6 @@
 package candown;
 
 /**
- *
  * @author peterhull
  */
 @FunctionalInterface
@@ -15,8 +14,9 @@ public interface Renderer {
     /**
      * Take the input string in markdown format and
      * convert to HTML
+     *
      * @param input the markdown string
      * @return the HTML output
      */
-  String render(String input);  
+    String render(String input);
 }
