@@ -3,5 +3,5 @@
  */
  var options = {gfm: true, mangle: false, headerIds: false}
 function render(s) {
-    return "<html><body>"+marked.parse(s, options)+"</body></html>";
+    return "<html><style>body { font-family: sans-serif }</style><body>"+marked.parse(s, options)+"</body></html>";
 }
