@@ -13,7 +13,7 @@ The app icon was taken from Dustin Curtis's
 
 Maven project is included.
 
-marked is copyright (c) 2011-2021, Christopher Jeffrey. (MIT License)
+marked is copyright (c) 2011-2023, Christopher Jeffrey. (MIT License)
 
 Licensed under the MIT license.
 
