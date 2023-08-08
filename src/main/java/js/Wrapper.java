@@ -28,6 +28,7 @@ public class Wrapper {
 
     public Wrapper() {
         ScriptEngineManager sem = new ScriptEngineManager();
+        System.setProperty("polyglot.engine.WarnInterpreterOnly", "false");
         engine = sem.getEngineByExtension("js");
         if (engine != null) {
             try (Reader rdr = new InputStreamReader(Wrapper.class.getResourceAsStream("marked.umd.js"))) {
