@@ -31,7 +31,7 @@ public class Wrapper {
         System.setProperty("polyglot.engine.WarnInterpreterOnly", "false");
         engine = sem.getEngineByExtension("js");
         if (engine != null) {
-            try (Reader rdr = new InputStreamReader(Wrapper.class.getResourceAsStream("marked.umd.js"))) {
+            try (Reader rdr = new InputStreamReader(Wrapper.class.getResourceAsStream("marked.min.js"))) {
                 engine.eval(rdr);
             } catch (IOException | ScriptException xep) {
                 // Shouldn't happen since the file is build into the JAR.
