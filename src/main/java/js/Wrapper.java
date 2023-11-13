@@ -16,6 +16,8 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.script.Compilable;
+import javax.script.CompiledScript;
 
 /**
  * @author peterhull
@@ -23,27 +25,41 @@ import java.util.logging.Logger;
 public class Wrapper {
 
     private static final Renderer NULLRENDERER = (String input) -> "No Javascript Engine installed";
-    private final ScriptEngine engine;
-    private final Invocable invocable;
+    private ScriptEngine engine;
+    private Invocable invocable;
+    private CompiledScript wrapper;
+    private CompiledScript marked;
 
     public Wrapper() {
+        init();
+    }
+
+    private void init() {
         ScriptEngineManager sem = new ScriptEngineManager();
-        System.setProperty("polyglot.engine.WarnInterpreterOnly", "false");
         engine = sem.getEngineByExtension("js");
-        if (engine != null) {
-            try (Reader rdr = new InputStreamReader(Wrapper.class.getResourceAsStream("marked.min.js"))) {
-                engine.eval(rdr);
-            } catch (IOException | ScriptException xep) {
-                // Shouldn't happen since the file is build into the JAR.
+        if (engine instanceof Compilable compilable) {
+            try {
+                try (Reader rdr = new InputStreamReader(Wrapper.class.getResourceAsStream("marked.min.js"))) {
+                    marked = compilable.compile(rdr);
+                } catch (IOException xep) {
+                    // Shouldn't happen since the file is build into the JAR.
+                    Logger.getLogger(Wrapper.class.getName()).log(Level.SEVERE, null, xep);
+                }
+                try (Reader rdr = new InputStreamReader(Wrapper.class.getResourceAsStream("wrapper.js"))) {
+                    wrapper = compilable.compile(rdr);
+                } catch (IOException xep) {
+                    // Shouldn't happen since the file is built into the JAR.
+                    Logger.getLogger(Wrapper.class.getName()).log(Level.SEVERE, null, xep);
+                }
+
+                marked.eval();
+                wrapper.eval();
+            } catch (ScriptException xep) {
                 Logger.getLogger(Wrapper.class.getName()).log(Level.SEVERE, null, xep);
             }
-            try (Reader rdr = new InputStreamReader(Wrapper.class.getResourceAsStream("wrapper.js"))) {
-                engine.eval(rdr);
-            } catch (IOException | ScriptException xep) {
-                // Shouldn't happen since the file is built into the JAR.
-                Logger.getLogger(Wrapper.class.getName()).log(Level.SEVERE, null, xep);
-            }
-            invocable = (Invocable) engine;
+        }
+        if (engine instanceof Invocable inv) {
+            invocable = inv;
         } else {
             invocable = null;
         }
