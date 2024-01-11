@@ -6,66 +6,46 @@
 package js;
 
 import candown.Renderer;
+//import com.oracle.truffle.js.runtime.JSContextOptions;
 
-import javax.script.Invocable;
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
-import javax.script.ScriptException;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import javax.script.Compilable;
-import javax.script.CompiledScript;
+import org.graalvm.polyglot.Context;
+import org.graalvm.polyglot.Engine;
+import org.graalvm.polyglot.Source;
+import org.graalvm.polyglot.Value;
+import org.graalvm.polyglot.io.IOAccess;
 
 /**
  * @author peterhull
  */
 public class Wrapper {
 
-    private static final Renderer NULLRENDERER = (String input) -> "No Javascript Engine installed";
-    private ScriptEngine engine;
-    private Invocable invocable;
-    private CompiledScript wrapper;
-    private CompiledScript marked;
+
+    private Context graalContext;
 
     public Wrapper() {
-        init();
+        init2();
     }
-
-    private void init() {
-        ScriptEngineManager sem = new ScriptEngineManager();
-        engine = sem.getEngineByExtension("js");
-        if (engine instanceof Compilable compilable) {
-            try {
-                try (Reader rdr = new InputStreamReader(Wrapper.class.getResourceAsStream("marked.min.js"))) {
-                    marked = compilable.compile(rdr);
-                } catch (IOException xep) {
-                    // Shouldn't happen since the file is build into the JAR.
-                    Logger.getLogger(Wrapper.class.getName()).log(Level.SEVERE, null, xep);
-                }
-                try (Reader rdr = new InputStreamReader(Wrapper.class.getResourceAsStream("wrapper.js"))) {
-                    wrapper = compilable.compile(rdr);
-                } catch (IOException xep) {
-                    // Shouldn't happen since the file is built into the JAR.
-                    Logger.getLogger(Wrapper.class.getName()).log(Level.SEVERE, null, xep);
-                }
-
-                marked.eval();
-                wrapper.eval();
-            } catch (ScriptException xep) {
-                Logger.getLogger(Wrapper.class.getName()).log(Level.SEVERE, null, xep);
-            }
+private void init2() {
+        try {
+            Engine graalEngine = Engine.newBuilder()
+                    .option("engine.WarnInterpreterOnly", "false")
+                    .build();
+            Context context = Context.newBuilder("js")
+                    .allowIO(IOAccess.NONE).engine(graalEngine).build();
+            Source marked = Source.newBuilder("js", Wrapper.class.getResource("marked.min.js")).build();
+            Source wrapper = Source.newBuilder("js", Wrapper.class.getResource("wrapper.js")).build();
+            
+            context.eval(marked);
+            context.eval(wrapper);
+            this.graalContext = context;
+        } catch (IOException ex) {
+            throw new IllegalStateException(ex);
         }
-        if (engine instanceof Invocable inv) {
-            invocable = inv;
-        } else {
-            invocable = null;
-        }
-    }
+}
 
     public Renderer getRenderer() {
-        return invocable == null ? NULLRENDERER : invocable.getInterface(Renderer.class);
+        Value bindings = graalContext.getBindings("js").getMember("render");
+        return (String input) -> bindings.execute(input).as(String.class);
     }
 }
