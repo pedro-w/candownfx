@@ -162,7 +162,7 @@ public class CanDownFX extends Application {
      *
      * @param event the menu event.
      */
-    private void onRefresh(ActionEvent event) {
+    private void onRefresh(@SuppressWarnings("unused") ActionEvent event) {
         Tab tab = tabPane.getSelectionModel().getSelectedItem();
         if (tab != null) {
             loadTabContent(tab);
@@ -174,11 +174,12 @@ public class CanDownFX extends Application {
      *
      * @param event the action event (not used)
      */
-    private void onExit(ActionEvent event) {
+    @SuppressWarnings("unused")
+    private void onExit(@SuppressWarnings("unused") ActionEvent event) {
         mainStage.close();
     }
 
-    private void onOpen(ActionEvent event) {
+    private void onOpen(@SuppressWarnings("unused") ActionEvent event) {
         File f = chooser.showOpenDialog(mainStage);
         if (f != null) {
             f = f.getAbsoluteFile();
@@ -324,13 +325,13 @@ public class CanDownFX extends Application {
         if (found == null) {
             MenuItem item = makeRecentItem(f);
             if (recentFiles.size() > MRU_MAX_SIZE) {
-                recentFiles.remove(recentFiles.size() - 1);
+                recentFiles.removeLast();
             }
-            recentFiles.add(0, item);
+            recentFiles.addFirst(item);
         } else {
             // jump the found one up to the top
             recentFiles.remove(found);
-            recentFiles.add(0, found);
+            recentFiles.addFirst(found);
         }
     }
 
