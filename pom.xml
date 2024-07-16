@@ -63,6 +63,13 @@
                 <executions>
                     <execution>
                         <id>ide-run</id>
+                        <configuration>
+                            <options>
+                                <option>
+                                    -Dpolyglot.engine.WarnInterpreterOnly=false
+                                </option>
+                            </options>
+                        </configuration>
                     </execution>
                     <execution>
                         <id>ide-debug</id>
