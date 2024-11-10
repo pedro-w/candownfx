@@ -135,7 +135,7 @@ public class CanDownFX extends Application {
         root.setCenter(tabPane);
 
         // Set up the main (and only) scene.
-        Scene scene = new Scene(root, 300, 250);
+        Scene scene = new Scene(root, 400, 600);
         primaryStage.setTitle("CanDown - Markdown Viewer");
         primaryStage.setScene(scene);
         primaryStage.show();
