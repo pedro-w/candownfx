@@ -1,7 +1,23 @@
 package candown;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Objects;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.prefs.Preferences;
+import java.util.stream.Stream;
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
@@ -20,17 +36,6 @@ import js.Wrapper;
 import org.w3c.dom.NodeList;
 import org.w3c.dom.events.Event;
 
-import java.io.File;
-import java.nio.file.Files;
-import java.util.Objects;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.util.prefs.Preferences;
-import java.util.stream.Stream;
-
 /**
  * Application to view markdown files. It is possible to set auto-refresh which
  * updates the view if the file changes.
@@ -46,6 +51,17 @@ public class CanDownFX extends Application {
     /// Key for the UPDATE_TIME property of a tab.
     private static final Object UPDATE_TIME = new Object();
     private static final int MRU_MAX_SIZE = 5;
+    /**
+     * The main() method is ignored in correctly deployed JavaFX application.
+     * main() serves only as fallback in case the application can not be
+     * launched through deployment artifacts, e.g., in IDEs with limited FX
+     * support. NetBeans ignores main().
+     *
+     * @param args the command line arguments
+     */
+    public static void main(String[] args) {
+        launch(args);
+    }
     /// The chooser used to open files
     private final FileChooser chooser = new FileChooser();
     /// A timer used for auto refresh events
@@ -58,6 +74,7 @@ public class CanDownFX extends Application {
     /// Current timer task or null
     private RefreshTask refreshTask;
     private ObservableList<MenuItem> recentFiles;
+
     /**
      * Create a new instance of this app.
      */
@@ -66,17 +83,6 @@ public class CanDownFX extends Application {
         this.renderer = wrapper.getRenderer();
     }
 
-    /**
-     * The main() method is ignored in correctly deployed JavaFX application.
-     * main() serves only as fallback in case the application can not be
-     * launched through deployment artifacts, e.g., in IDEs with limited FX
-     * support. NetBeans ignores main().
-     *
-     * @param args the command line arguments
-     */
-    public static void main(String[] args) {
-        launch(args);
-    }
 
     /**
      * Start the application. This sets up the UI and adds in the event
@@ -97,6 +103,7 @@ public class CanDownFX extends Application {
         // Create all menu items.
         Menu fileMenu = new Menu("File");
         MenuItem fileOpenMenu = new MenuItem("Open...");
+        MenuItem fileExportMenu = new MenuItem("Export...");
         Menu fileRecentMenu = new Menu("Recent");
         MenuItem fileExitMenu = new MenuItem("Exit");
         Menu viewMenu = new Menu("View");
@@ -104,13 +111,15 @@ public class CanDownFX extends Application {
         CheckMenuItem viewAutoRefreshMenu = new CheckMenuItem("Auto Refresh");
 
         // Assemble the menu bar
-        fileMenu.getItems().addAll(fileOpenMenu, fileRecentMenu, new SeparatorMenuItem(), fileExitMenu);
+        fileMenu.getItems().addAll(fileOpenMenu, fileExportMenu, fileRecentMenu, new SeparatorMenuItem(), fileExitMenu);
         viewMenu.getItems().addAll(viewRefreshMenu, viewAutoRefreshMenu);
         MenuBar menuBar = new MenuBar();
         menuBar.getMenus().addAll(fileMenu, viewMenu);
 
         // Bind in the handlers
         fileOpenMenu.setOnAction(this::onOpen);
+        fileExportMenu.setOnAction(this::onExport);
+
         recentFiles = fileRecentMenu.getItems();
         viewAutoRefreshMenu.selectedProperty().addListener((ObservableValue<? extends Boolean> ov, Boolean oldValue, Boolean newValue) -> {
             if (newValue) {
@@ -128,6 +137,8 @@ public class CanDownFX extends Application {
 
         // create and store the tab pane
         tabPane = new TabPane();
+        // Bind the list of tabs
+        fileExportMenu.disableProperty().bind(Bindings.isEmpty(tabPane.getTabs()));
 
         // Add the menu and tab view to the root pane
         BorderPane root = new BorderPane();
@@ -135,11 +146,15 @@ public class CanDownFX extends Application {
         root.setCenter(tabPane);
 
         // Set up the main (and only) scene.
-        Scene scene = new Scene(root, 300, 250);
+        Scene scene = new Scene(root, 400, 600);
         primaryStage.setTitle("CanDown - Markdown Viewer");
         primaryStage.setScene(scene);
         primaryStage.show();
 
+        loadMRU();
+    }
+
+    private void loadMRU() {
         // Load the preferences
         Preferences prefs = Preferences.userNodeForPackage(this.getClass());
         int n = prefs.getInt("MRU.N", 0);
@@ -218,38 +233,35 @@ public class CanDownFX extends Application {
      * @param tab the tab to load.
      */
     private void loadTabContent(Tab tab) {
-        final File filename = (File) tab.getProperties().get(SOURCE_FILE);
-        Object updateObject = tab.getProperties().get(UPDATE_TIME);
-        boolean needsReload = true;
-        if (updateObject != null) {
-            long updateTime = (Long) updateObject;
-            needsReload = updateTime != filename.lastModified();
-        }
-        if (needsReload) {
-            tab.getProperties().put(UPDATE_TIME, filename.lastModified());
+        if (tab.getProperties().get(SOURCE_FILE) instanceof File filename) {
+            boolean needsReload = true;
+            if (tab.getProperties().get(UPDATE_TIME) instanceof Long updateTime) {
+                needsReload = updateTime != filename.lastModified();
+            }
+            if (needsReload) {
+                tab.getProperties().put(UPDATE_TIME, filename.lastModified());
 
-            Task<String> reloader = new Task<>() {
+                Task<String> reloader = new Task<>() {
 
-                @Override
-                protected String call() throws Exception {
-                    String in = Files.readString(filename.toPath());
-                    return renderer.render(in);
+                    @Override
+                    protected String call() throws Exception {
+                        String in = Files.readString(filename.toPath());
+                        return renderer.render(in);
 
-                }
+                    }
 
-            };
-            final WebEngine webEngine = ((WebView) tab.getContent()).getEngine();
-            // Succeeded, show the content as html
-            reloader.setOnSucceeded((WorkerStateEvent event) -> {
-                final Object value = event.getSource().getValue();
-                if (value != null) {
-                    webEngine.loadContent(value.toString(), "text/html");
-                }
-            });
-            // Failed, show exception as plain text
-            reloader.setOnFailed((WorkerStateEvent event) -> webEngine.loadContent(event.getSource().getException().toString(), "text/plain"));
-            // Actually do the work on a different thread.
-            executor.submit(reloader);
+                };
+                final WebEngine webEngine = ((WebView) tab.getContent()).getEngine();
+                // Succeeded, show the content as html
+                reloader.setOnSucceeded((WorkerStateEvent event) -> {
+                    Object value = event.getSource().getValue();
+                    webEngine.loadContent(Objects.toString(value), "text/html");
+                });
+                // Failed, show exception as plain text
+                reloader.setOnFailed((WorkerStateEvent event) -> webEngine.loadContent(event.getSource().getException().toString(), "text/plain"));
+                // Actually do the work on a different thread.
+                executor.submit(reloader);
+            }
         }
     }
 
@@ -340,6 +352,19 @@ public class CanDownFX extends Application {
         item.setUserData(f);
         item.setOnAction(this::onOpenRecent);
         return item;
+    }
+
+    private void onExport(ActionEvent event) {
+        Tab currentTab = tabPane.getSelectionModel().getSelectedItem();
+        if (currentTab.getProperties().get(SOURCE_FILE) instanceof File file) {
+            try {
+                String content = Files.readString(file.toPath(), StandardCharsets.UTF_8);
+                String html = renderer.render(content);
+                Files.writeString(Path.of("test.html"), html, StandardCharsets.UTF_8);
+            } catch (IOException ex) {
+                Logger.getLogger(CanDownFX.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
     }
 
     /**
