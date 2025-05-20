@@ -9,9 +9,9 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <maven.compiler.release>21</maven.compiler.release>
-        <javafx.version>22.0.1</javafx.version>
-        <graalvm.version>24.1.1</graalvm.version>
+        <maven.compiler.release>23</maven.compiler.release>
+        <javafx.version>24.0.1</javafx.version>
+        <graalvm.version>24.2.1</graalvm.version>
     </properties>
 
     <dependencies>
@@ -48,7 +48,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.13.0</version>
+                <version>3.14.0</version>
                 <configuration>
                     <release>${maven.compiler.release}</release>
                 </configuration>
