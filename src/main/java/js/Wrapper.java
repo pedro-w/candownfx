@@ -39,7 +39,7 @@ public class Wrapper {
         engine = sem.getEngineByExtension("js");
         if (engine instanceof Compilable compilable) {
             try {
-                try (Reader rdr = new InputStreamReader(Wrapper.class.getResourceAsStream("marked.min.js"))) {
+                try (Reader rdr = new InputStreamReader(Wrapper.class.getResourceAsStream("marked.umd.js"))) {
                     marked = compilable.compile(rdr);
                 } catch (IOException xep) {
                     // Shouldn't happen since the file is build into the JAR.

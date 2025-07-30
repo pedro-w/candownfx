@@ -10,8 +10,8 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.release>23</maven.compiler.release>
-        <javafx.version>24.0.1</javafx.version>
-        <graalvm.version>24.2.1</graalvm.version>
+        <javafx.version>24.0.2</javafx.version>
+        <graalvm.version>24.2.2</graalvm.version>
     </properties>
 
     <dependencies>
