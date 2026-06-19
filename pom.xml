@@ -10,8 +10,8 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.release>25</maven.compiler.release>
-        <javafx.version>25.0.2</javafx.version>
-        <graalvm.version>24.2.2</graalvm.version>
+        <javafx.version>26.0.1</javafx.version>
+        <graalvm.version>25.0.3</graalvm.version>
     </properties>
 
     <dependencies>
@@ -48,7 +48,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.14.1</version>
+                <version>3.15.0</version>
                 <configuration>
                     <release>${maven.compiler.release}</release>
                 </configuration>
@@ -68,6 +68,9 @@
                                 <option>
                                     -Dpolyglot.engine.WarnInterpreterOnly=false
                                 </option>
+                                <!-- https://stackoverflow.com/questions/79944101/can-i-use-javafx-web-in-a-non-modular-maven-project/79944142#79944142 -->
+                                <option>--upgrade-module-path</option>
+                                <option>${settings.localRepository}/org/openjfx/jdk-jsobject/${javafx.version}/jdk-jsobject-${javafx.version}-win.jar</option>
                             </options>
                         </configuration>
                     </execution>
