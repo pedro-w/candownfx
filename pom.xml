@@ -10,8 +10,8 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.release>25</maven.compiler.release>
-        <javafx.version>25.0.2</javafx.version>
-        <graalvm.version>24.2.2</graalvm.version>
+        <javafx.version>26.0.1</javafx.version>
+        <quickjs4j.version>0.0.18</quickjs4j.version>
     </properties>
 
     <dependencies>
@@ -26,21 +26,14 @@
             <version>${javafx.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.graalvm.polyglot</groupId>
-            <artifactId>polyglot</artifactId>
-            <version>${graalvm.version}</version>
-            <type>jar</type>
+            <groupId>io.roastedroot</groupId>
+            <artifactId>quickjs4j</artifactId>
+            <version>${quickjs4j.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.graalvm.polyglot</groupId>
-            <artifactId>js-community</artifactId>
-            <version>${graalvm.version}</version>
-            <type>pom</type>
-        </dependency>
-        <dependency>
-            <groupId>org.graalvm.js</groupId>
-            <artifactId>js-scriptengine</artifactId>
-            <version>${graalvm.version}</version>
+            <groupId>io.roastedroot</groupId>
+            <artifactId>quickjs4j-scripting-experimental</artifactId>
+            <version>${quickjs4j.version}</version>
         </dependency>
     </dependencies>
     <build>
@@ -48,7 +41,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.14.1</version>
+                <version>3.15.0</version>
                 <configuration>
                     <release>${maven.compiler.release}</release>
                 </configuration>
@@ -65,9 +58,6 @@
                         <id>ide-run</id>
                         <configuration>
                             <options>
-                                <option>
-                                    -Dpolyglot.engine.WarnInterpreterOnly=false
-                                </option>
                             </options>
                         </configuration>
                     </execution>
